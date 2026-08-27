@@ -1,0 +1,10 @@
+{
+  "description": "This user-friendly login page allows individuals, including those in rural areas, to easily enter their name and phone number for seamless access.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
