@@ -10,6 +10,23 @@ const LANGUAGES = [
   { code: "gu", label: "Gujarati", native: "ગુજરાતી" },
 ];
 
+type UploadedReport = {
+  id: string;
+  fileName: string;
+  displayName: string;
+  fileUrl: string;
+  fileType: string;
+  date: string;
+  source: "scan" | "upload";
+};
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
+
+function formatUploadDate(d: Date) {
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 export default function App() {
   const { language: selectedLang, setLanguage: setSelectedLang, t, isTranslating } = useLanguage();
   const [screen, setScreen] = useState<Screen>("login");
@@ -23,8 +40,18 @@ export default function App() {
   const [spokenText, setSpokenText] = useState("");
   const [caseText, setCaseText] = useState("");
   const [expandedVisit, setExpandedVisit] = useState<number | null>(null);
+  const [uploadedReports, setUploadedReports] = useState<UploadedReport[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [reportSearch, setReportSearch] = useState("");
+  const [reportTypeFilter, setReportTypeFilter] = useState<"all" | "prescription" | "lab-report" | "uploaded">("all");
+  const [visitSearch, setVisitSearch] = useState("");
+  const [visitDoctorFilter, setVisitDoctorFilter] = useState<string>("all");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (screen !== "otp") return;
@@ -99,6 +126,69 @@ export default function App() {
   function handleLangSelect(code: string) {
     setSelectedLang(code);
     setTimeout(() => setScreen("home"), 300);
+  }
+
+  function addReportFile(file: File, source: "scan" | "upload") {
+    if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
+      setUploadError(t("Please upload a JPG, PNG, or PDF file."));
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError(t("File is too large. Please upload a file under 10MB."));
+      return;
+    }
+
+    setUploadError(null);
+    const fileUrl = URL.createObjectURL(file);
+    const newReport: UploadedReport = {
+      id: `${Date.now()}-${file.name}`,
+      fileName: file.name,
+      displayName: file.name,
+      fileUrl,
+      fileType: file.type,
+      date: formatUploadDate(new Date()),
+      source,
+    };
+    setUploadedReports((prev) => [newReport, ...prev]);
+  }
+
+  function startRenameReport(id: string, currentName: string) {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  }
+
+  function saveRenameReport() {
+    const trimmed = renameValue.trim();
+    if (renamingId && trimmed) {
+      setUploadedReports((prev) =>
+        prev.map((r) => (r.id === renamingId ? { ...r, displayName: trimmed } : r))
+      );
+    }
+    setRenamingId(null);
+    setRenameValue("");
+  }
+
+  function deleteUploadedReport(id: string) {
+    const target = uploadedReports.find((r) => r.id === id);
+    if (!target) return;
+    if (!window.confirm(t("Delete this report? This cannot be undone."))) return;
+    URL.revokeObjectURL(target.fileUrl);
+    setUploadedReports((prev) => prev.filter((r) => r.id !== id));
+    if (renamingId === id) { setRenamingId(null); setRenameValue(""); }
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    addReportFile(file, "upload");
+  }
+
+  function handleScanCapture(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-capturing later
+    if (!file) return;
+    addReportFile(file, "scan");
   }
 
   function toggleMic() {
@@ -664,6 +754,7 @@ export default function App() {
     const reports = [
       {
         type: t("Prescription"),
+        category: "prescription" as const,
         doctor: "Dr. Anjali Sharma",
         date: "22 Aug 2026",
         detail: t("Paracetamol, Cetirizine, Vitamin C"),
@@ -679,6 +770,7 @@ export default function App() {
       },
       {
         type: t("Lab Report"),
+        category: "lab-report" as const,
         doctor: "City Diagnostics Lab",
         date: "18 Aug 2026",
         detail: t("CBC, Blood Sugar, Thyroid (TSH)"),
@@ -692,6 +784,7 @@ export default function App() {
       },
       {
         type: t("Prescription"),
+        category: "prescription" as const,
         doctor: "Dr. Ramesh Patil",
         date: "5 Aug 2026",
         detail: t("Amoxicillin, ORS, Pantoprazole"),
@@ -707,6 +800,7 @@ export default function App() {
       },
       {
         type: t("Lab Report"),
+        category: "lab-report" as const,
         doctor: "HealthCare Pathology",
         date: "28 Jul 2026",
         detail: t("Urine Routine, Creatinine, HbA1c"),
@@ -720,6 +814,7 @@ export default function App() {
       },
       {
         type: t("Prescription"),
+        category: "prescription" as const,
         doctor: "Dr. Sunita Verma",
         date: "10 Jul 2026",
         detail: t("Metformin, Atorvastatin, Aspirin"),
@@ -735,8 +830,82 @@ export default function App() {
       },
     ];
 
+    const uploadedAsReports = uploadedReports.map((u) => ({
+      id: u.id,
+      type:
+        u.source === "scan"
+          ? t("Scanned Report")
+          : u.fileType === "application/pdf"
+          ? t("Uploaded PDF")
+          : t("Uploaded Photo"),
+      category: "uploaded" as const,
+      doctor: u.displayName,
+      date: u.date,
+      detail: t("Tap to view"),
+      color: "#fff4db",
+      fileUrl: u.fileUrl as string | undefined,
+      icon:
+        u.source === "scan" ? (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="7" width="18" height="12" rx="2" stroke="#c98a1a" strokeWidth="1.8" />
+            <path d="M8 7l1.5-2.5h5L16 7" stroke="#c98a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="12" cy="13" r="3" stroke="#c98a1a" strokeWidth="1.8" />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3v12M12 15l-4-4M12 15l4-4" stroke="#c98a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="#c98a1a" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        ),
+    }));
+
+    const allReports = [
+      ...uploadedAsReports,
+      ...reports.map((r) => ({ ...r, id: undefined as string | undefined, fileUrl: undefined as string | undefined })),
+    ];
+
+    const reportFilterChips: { key: typeof reportTypeFilter; label: string }[] = [
+      { key: "all", label: t("All") },
+      { key: "prescription", label: t("Prescriptions") },
+      { key: "lab-report", label: t("Lab Reports") },
+      { key: "uploaded", label: t("Uploaded/Scanned") },
+    ];
+
+    const filteredReports = allReports.filter((r) => {
+      if (reportTypeFilter !== "all" && r.category !== reportTypeFilter) return false;
+      const q = reportSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        r.type.toLowerCase().includes(q) ||
+        r.doctor.toLowerCase().includes(q) ||
+        r.detail.toLowerCase().includes(q)
+      );
+    });
+
     return (
       <div className="relative min-h-screen flex flex-col px-6 py-12">
+        {/* Hidden file input used by the Upload button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+
+        {/* Hidden camera-capture input used by the Scan New button.
+            `capture="environment"` opens the rear camera directly on mobile browsers;
+            on desktop browsers (no camera API for this attribute) it just falls back
+            to the regular file picker, filtered to images. */}
+        <input
+          ref={scanInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleScanCapture}
+          className="hidden"
+        />
+
         {/* Back */}
         <button
           onClick={() => setScreen("home")}
@@ -751,51 +920,165 @@ export default function App() {
         </button>
 
         {/* Title */}
-        <div className="mt-4 mb-8">
+        <div className="mt-4 mb-6">
           <h1 className="text-2xl font-bold" style={{ color: "#1a3a5c" }}>{t("My Reports")}</h1>
           <p className="text-base mt-1" style={{ color: "#4a7aaa" }}>
-            {reports.length} {t("records found")}
+            {filteredReports.length} {t("records found")}
           </p>
         </div>
 
+        {/* Search */}
+        <div className="relative w-full max-w-sm mb-4">
+          <svg
+            width="18" height="18" viewBox="0 0 24 24" fill="none"
+            style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)" }}
+          >
+            <circle cx="11" cy="11" r="7" stroke="#7aadd4" strokeWidth="2" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="#7aadd4" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            value={reportSearch}
+            onChange={(e) => setReportSearch(e.target.value)}
+            placeholder={t("Search by doctor, type, or details")}
+            className="w-full text-base pl-11 pr-4 py-3.5 rounded-2xl outline-none transition-all"
+            style={{ background: "#f0f7ff", border: "2px solid #b8d8f8", color: "#1a3a5c" }}
+          />
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex gap-2 w-full max-w-sm mb-6 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {reportFilterChips.map((chip) => {
+            const active = reportTypeFilter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                onClick={() => setReportTypeFilter(chip.key)}
+                className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                style={{
+                  background: active ? "#1a6fd4" : "#f0f7ff",
+                  color: active ? "#fff" : "#4a7aaa",
+                  border: active ? "2px solid #1a6fd4" : "2px solid #b8d8f8",
+                }}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {uploadError && (
+          <p className="text-sm font-medium mb-4" style={{ color: "#e05252" }}>⚠ {uploadError}</p>
+        )}
+
         {/* Report cards */}
         <div className="flex flex-col gap-4 w-full max-w-sm pb-36">
-          {reports.map((r, i) => (
-            <div
-              key={i}
-              className="w-full rounded-2xl px-5 py-5 flex items-start gap-4"
-              style={{ background: "#f0f7ff", border: "2px solid #b8d8f8" }}
-            >
-              {/* Icon badge */}
-              <span
-                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: r.color, border: "1.5px solid #b8d8f8" }}
+          {filteredReports.length === 0 && (
+            <p className="text-sm text-center py-10" style={{ color: "#7aadd4" }}>
+              {t("No reports match your search.")}
+            </p>
+          )}
+          {filteredReports.map((r, i) => {
+            const isRenaming = r.id != null && renamingId === r.id;
+            return (
+              <div
+                key={r.id ?? i}
+                className="w-full rounded-2xl px-5 py-5 flex items-start gap-4"
+                style={{
+                  background: "#f0f7ff",
+                  border: "2px solid #b8d8f8",
+                }}
               >
-                {r.icon}
-              </span>
+                {/* Icon badge */}
+                <span
+                  onClick={() => !isRenaming && r.fileUrl && window.open(r.fileUrl, "_blank", "noopener,noreferrer")}
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: r.color, border: "1.5px solid #b8d8f8", cursor: r.fileUrl ? "pointer" : "default" }}
+                >
+                  {r.icon}
+                </span>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className="text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: "#dbeeff", color: "#1a6fd4" }}
-                  >
-                    {r.type}
-                  </span>
-                  <span className="text-xs font-medium flex-shrink-0" style={{ color: "#7aadd4" }}>
-                    {r.date}
-                  </span>
+                {/* Info */}
+                <div
+                  className="flex-1 min-w-0"
+                  onClick={() => !isRenaming && r.fileUrl && window.open(r.fileUrl, "_blank", "noopener,noreferrer")}
+                  style={{ cursor: !isRenaming && r.fileUrl ? "pointer" : "default" }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: "#dbeeff", color: "#1a6fd4" }}
+                    >
+                      {r.type}
+                    </span>
+                    <span className="text-xs font-medium flex-shrink-0" style={{ color: "#7aadd4" }}>
+                      {r.date}
+                    </span>
+                  </div>
+
+                  {isRenaming ? (
+                    <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveRenameReport();
+                          if (e.key === "Escape") { setRenamingId(null); setRenameValue(""); }
+                        }}
+                        className="flex-1 min-w-0 text-base px-3 py-2 rounded-lg outline-none"
+                        style={{ border: "1.5px solid #1a6fd4", color: "#1a3a5c" }}
+                      />
+                      <button
+                        onClick={saveRenameReport}
+                        className="text-sm font-bold px-2 py-1 flex-shrink-0"
+                        style={{ color: "#1a6fd4" }}
+                      >
+                        {t("Save")}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-base font-semibold mt-2 truncate" style={{ color: "#1a3a5c" }}>
+                      {r.doctor}
+                    </p>
+                  )}
+
+                  <p className="text-sm mt-0.5" style={{ color: "#7aadd4" }}>
+                    {r.detail}
+                  </p>
                 </div>
-                <p className="text-base font-semibold mt-2 truncate" style={{ color: "#1a3a5c" }}>
-                  {r.doctor}
-                </p>
-                <p className="text-sm mt-0.5" style={{ color: "#7aadd4" }}>
-                  {r.detail}
-                </p>
+
+                {/* Rename / delete — uploaded & scanned reports only */}
+                {r.id != null && !isRenaming && (
+                  <div className="flex flex-col gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); startRenameReport(r.id as string, r.doctor); }}
+                      aria-label={t("Rename")}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: "#e2f0ff" }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 20h9" stroke="#1a6fd4" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="#1a6fd4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteUploadedReport(r.id as string); }}
+                      aria-label={t("Delete")}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: "#fdeaea" }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 6h18" stroke="#e05252" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="#e05252" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Sticky bottom buttons */}
@@ -804,6 +1087,7 @@ export default function App() {
           style={{ background: "rgba(255,255,255,0.95)", borderTop: "2px solid #dbeeff", backdropFilter: "blur(8px)" }}
         >
           <button
+            onClick={() => scanInputRef.current?.click()}
             className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-bold text-white transition-all active:scale-95"
             style={{ background: "#1a6fd4" }}
             onMouseOver={(e) => ((e.currentTarget as HTMLElement).style.background = "#155db8")}
@@ -816,6 +1100,7 @@ export default function App() {
             {t("Scan New")}
           </button>
           <button
+            onClick={() => fileInputRef.current?.click()}
             className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-lg font-bold transition-all active:scale-95"
             style={{ background: "#f0f7ff", border: "2.5px solid #b8d8f8", color: "#1a6fd4" }}
             onMouseOver={(e) => {
@@ -887,6 +1172,21 @@ export default function App() {
       },
     ];
 
+    const doctorOptions = Array.from(new Set(visits.map((v) => v.doctor)));
+
+    const visitsWithIndex = visits.map((v, i) => ({ ...v, _idx: i }));
+    const filteredVisits = visitsWithIndex.filter((v) => {
+      if (visitDoctorFilter !== "all" && v.doctor !== visitDoctorFilter) return false;
+      const q = visitSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        v.doctor.toLowerCase().includes(q) ||
+        v.hospital.toLowerCase().includes(q) ||
+        v.complaint.toLowerCase().includes(q) ||
+        v.diagnosis.toLowerCase().includes(q)
+      );
+    });
+
     return (
       <div className="relative min-h-screen flex flex-col px-6 py-12 pb-10">
         {/* Back */}
@@ -903,16 +1203,75 @@ export default function App() {
         </button>
 
         {/* Title */}
-        <div className="mt-4 mb-8">
+        <div className="mt-4 mb-6">
           <h1 className="text-2xl font-bold" style={{ color: "#1a3a5c" }}>{t("Past Visits")}</h1>
           <p className="text-base mt-1" style={{ color: "#4a7aaa" }}>
             {t("Tap on a visit to view case sheet")}
           </p>
         </div>
 
+        {/* Search */}
+        <div className="relative w-full max-w-sm mb-4">
+          <svg
+            width="18" height="18" viewBox="0 0 24 24" fill="none"
+            style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)" }}
+          >
+            <circle cx="11" cy="11" r="7" stroke="#7aadd4" strokeWidth="2" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="#7aadd4" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            value={visitSearch}
+            onChange={(e) => setVisitSearch(e.target.value)}
+            placeholder={t("Search by doctor, hospital, or complaint")}
+            className="w-full text-base pl-11 pr-4 py-3.5 rounded-2xl outline-none transition-all"
+            style={{ background: "#f0f7ff", border: "2px solid #b8d8f8", color: "#1a3a5c" }}
+          />
+        </div>
+
+        {/* Doctor filter chips */}
+        {doctorOptions.length > 1 && (
+          <div className="flex gap-2 w-full max-w-sm mb-6 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <button
+              onClick={() => setVisitDoctorFilter("all")}
+              className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+              style={{
+                background: visitDoctorFilter === "all" ? "#1a6fd4" : "#f0f7ff",
+                color: visitDoctorFilter === "all" ? "#fff" : "#4a7aaa",
+                border: visitDoctorFilter === "all" ? "2px solid #1a6fd4" : "2px solid #b8d8f8",
+              }}
+            >
+              {t("All")}
+            </button>
+            {doctorOptions.map((doc) => {
+              const active = visitDoctorFilter === doc;
+              return (
+                <button
+                  key={doc}
+                  onClick={() => setVisitDoctorFilter(doc)}
+                  className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                  style={{
+                    background: active ? "#1a6fd4" : "#f0f7ff",
+                    color: active ? "#fff" : "#4a7aaa",
+                    border: active ? "2px solid #1a6fd4" : "2px solid #b8d8f8",
+                  }}
+                >
+                  {doc}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Visit cards */}
         <div className="flex flex-col gap-4 w-full max-w-sm">
-          {visits.map((v, i) => {
+          {filteredVisits.length === 0 && (
+            <p className="text-sm text-center py-10" style={{ color: "#7aadd4" }}>
+              {t("No visits match your search.")}
+            </p>
+          )}
+          {filteredVisits.map((v) => {
+            const i = v._idx;
             const isOpen = expandedVisit === i;
             return (
               <div
