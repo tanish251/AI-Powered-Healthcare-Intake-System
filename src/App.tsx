@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useLanguage } from "./i18n/LanguageContext";
 
-type Screen = "login" | "otp" | "language" | "home" | "case-sheet" | "voice-confirm" | "my-reports" | "past-visits";
+import IntakeChatUI from "./components/IntakeChatUI";
+
+type Screen = "login" | "otp" | "language" | "home" | "case-sheet" | "voice-confirm" | "my-reports" | "past-visits" | "intake";
 
 const LANGUAGES = [
   { code: "en", label: "English", native: "English" },
@@ -29,7 +31,7 @@ function formatUploadDate(d: Date) {
 
 export default function App() {
   const { language: selectedLang, setLanguage: setSelectedLang, t, isTranslating } = useLanguage();
-  const [screen, setScreen] = useState<Screen>("login");
+  const [screen, setScreen] = useState<Screen>("intake");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -304,9 +306,24 @@ export default function App() {
     </div>
   );
 
+  if (screen === "intake") {
+    return <IntakeChatUI onBack={() => setScreen("home")} />;
+  }
+
   /* ══════════════════ HOME ══════════════════ */
   if (screen === "home") {
     const actions = [
+      {
+        id: "intake",
+        label: t("Ayush AI Intake Engine"),
+        sub: t("Conversational Intake & Doctor View"),
+        icon: (
+          <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+            <rect x="6" y="6" width="28" height="28" rx="8" fill="#1a6fd4" />
+            <path d="M12 20h16M20 12v16" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+        ),
+      },
       {
         id: "case-sheet",
         label: t("Prepare Case Sheet"),

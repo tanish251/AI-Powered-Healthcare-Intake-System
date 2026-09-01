@@ -1,0 +1,11 @@
+# Reference/source repositories cloned by scripts/bootstrap.sh
+https://github.com/PaddlePaddle/PaddleOCR.git
+https://github.com/AI4Bharat/IndicTrans2.git
+https://github.com/searxng/searxng.git
+https://github.com/qdrant/qdrant-client.git
+https://github.com/ggml-org/llama.cpp.git
+https://github.com/yale-nlp/medical-rag.git
+https://github.com/Google-Health/medgemma.git
+https://github.com/ClinicalDataScience/TURBO.git
+https://github.com/rsommerfeld/trocr.git
+https://github.com/cedarsaam/agent-search.git

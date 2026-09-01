@@ -1,20 +1,39 @@
-# Secrets
+# Secrets & Environment Config
 .env
 *.env
+.env.local
+.DS_Store
 
-# Python
+# Python & Dependencies
+node_modules/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+env/
 venv/
 .venv/
 
-# Model checkpoints / large downloads
+# Model checkpoints / large downloads / Local Data
+data/
+engine/data/
+*.gguf
 *.bin
+*.pth
+*.onnx
 *.safetensors
 *.ckpt
-*.onnx
-
-# Test audio (not for public repo)
-data/
 *.wav
+
+# Logs & Temporary Files
+logs/
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+scratch/
+/tmp/
+
+# Build & Tooling
+dist/
+build/
+repos/

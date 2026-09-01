@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PS47 Medical Intake Engine — Diagnostic Testing Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --panel-bg: #111827;
+      --panel-border: #1f2937;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-amber: #f59e0b;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--panel-border);
+      margin-bottom: 24px;
+    }
+
+    .title-group h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      background: var(--panel-bg);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-amber);
+    }
+
+    .status-dot.online { background: var(--accent-green); }
+    .status-dot.offline { background: var(--accent-red); }
+
+    .patient-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--panel-bg);
+      padding: 14px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      margin-bottom: 24px;
+    }
+
+    .patient-bar label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .patient-bar input {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      width: 220px;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #f3f4f6;
+    }
+
+    .upload-zone {
+      border: 2px dashed #334155;
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      background: #0f172a;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--accent);
+    }
+
+    .upload-zone input {
+      display: none;
+    }
+
+    .file-name {
+      font-size: 0.85rem;
+      color: var(--accent);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+
+    .btn-secondary:hover {
+      background: #334155;
+    }
+
+    .chat-box {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 280px;
+      overflow-y: auto;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .msg {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 85%;
+    }
+
+    .msg.user {
+      background: var(--accent);
+      color: white;
+      align-self: flex-end;
+    }
+
+    .msg.assistant {
+      background: #1e293b;
+      color: #e2e8f0;
+      align-self: flex-start;
+      border: 1px solid #334155;
+      white-space: pre-wrap;
+    }
+
+    .chat-input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .chat-input-group input {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .output-area {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #38bdf8;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title-group">
+      <h1>PS47 Engine Sandbox <span class="badge">Local RTX 3050</span></h1>
+    </div>
+    <div class="status-pill">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Checking status...</span>
+    </div>
+  </div>
+
+  <div class="patient-bar">
+    <label for="patient-id">Active Patient ID:</label>
+    <input type="text" id="patient-id" value="patient_001" placeholder="Enter Patient ID...">
+    <button class="btn btn-secondary" onclick="fetchState()">Refresh Patient State</button>
+  </div>
+
+  <div class="grid-container">
+
+    <!-- Left Column: Ingestion & Patient Chat -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      
+      <!-- 1. Document Ingestion Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>1. Ingest Medical Report</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">PDF / Image / Text</span>
+        </div>
+        <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Click or drag medical report file here</p>
+          <div class="file-name" id="file-name">No file selected</div>
+          <input type="file" id="file-input" onchange="onFileSelected(event)">
+        </div>
+        <button class="btn" id="btn-ingest" onclick="uploadDocument()" disabled>
+          Upload & Ingest Document
+        </button>
+      </div>
+
+      <!-- 2. Patient Symptom Chat Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>2. Patient Guidance Chat</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Hinglish / English Support</span>
+        </div>
+        <div class="chat-box" id="chat-box">
+          <div class="msg assistant">Hello! Please enter your symptoms or upload your medical report above.</div>
+        </div>
+        <div class="chat-input-group">
+          <input type="text" id="chat-input" placeholder="e.g. Pet me tez dard aur bukhar hai..." onkeydown="if(event.key==='Enter') sendChat()">
+          <button class="btn" id="btn-chat" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Case Sheet & State Inspection -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+      <!-- 3. Doctor Case Sheet Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>3. Doctor Case Sheet</span>
+          <button class="btn btn-secondary" id="btn-casesheet" onclick="generateCaseSheet()">Generate Case Sheet</button>
+        </div>
+        <div class="output-area" id="casesheet-output">Click "Generate Case Sheet" to synthesize patient medical intake report...</div>
+      </div>
+
+      <!-- 4. Patient State & Evidence Inspector -->
+      <div class="card">
+        <div class="card-title">
+          <span>4. Patient Timeline & Evidence</span>
+        </div>
+        <div class="output-area" id="state-output" style="max-height: 220px; color: #a7f3d0;">Click "Refresh Patient State" to view indexed evidence...</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const BASE_URL = 'http://127.0.0.1:8110';
+    let selectedFile = null;
+
+    async function checkHealth() {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      try {
+        const res = await fetch(`${BASE_URL}/health`);
+        if (res.ok) {
+          const data = await res.json();
+          dot.className = 'status-dot online';
+          text.innerText = `Engine: ${data.status.toUpperCase()} | Medical LLM: ${data.medical_llm.status} | OCR: ${data.ocr.status}`;
+        } else {
+          dot.className = 'status-dot offline';
+          text.innerText = 'Engine Degraded';
+        }
+      } catch (err) {
+        dot.className = 'status-dot offline';
+        text.innerText = 'Engine Server Offline';
+      }
+    }
+
+    function onFileSelected(e) {
+      if (e.target.files.length > 0) {
+        selectedFile = e.target.files[0];
+        document.getElementById('file-name').innerText = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+        document.getElementById('btn-ingest').disabled = false;
+      }
+    }
+
+    async function uploadDocument() {
+      const patientId = document.getElementById('patient-id').value.trim() || 'patient_001';
+      if (!selectedFile) return;
+
+      const btn = document.getElementById('btn-ingest');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Processing OCR & Vector Indexing...`;
+
+      const formData = new FormData();
+      formData.append('patient_id', patientId);
+      formData.append('file', selectedFile);
+
+      try {
+        const res = await fetch(`${BASE_URL}/documents/ingest`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`Document Ingested Successfully!\nIndexed ${data.indexed} chunk(s) for patient ID: ${patientId}`);
+          fetchState();
+        } else {
+          alert(`Ingest Failed: ${JSON.stringify(data)}`);
+        }
+      } catch (err) {
+        alert(`Error during ingestion: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `Upload & Ingest Document`;
+      }
+    }
+
+    async function sendChat() {
+      const patientId = document.getElementById('patient-id').value.trim() || 'patient_001';
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      const chatBox = document.getElementById('chat-box');
+      
+      // Append user msg
+      const userDiv = document.createElement('div');
+      userDiv.className = 'msg user';
+      userDiv.innerText = message;
+      chatBox.appendChild(userDiv);
+      input.value = '';
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Pending assistant msg
+      const assistDiv = document.createElement('div');
+      assistDiv.className = 'msg assistant';
+      assistDiv.innerHTML = `<span class="spinner"></span> Analyzing symptoms & RAG evidence...`;
+      chatBox.appendChild(assistDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      const btn = document.getElementById('btn-chat');
+      btn.disabled = true;
+
+      const formData = new FormData();
+      formData.append('message', message);
+
+      try {
+        const res = await fetch(`${BASE_URL}/patients/${patientId}/chat`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const content = data.choices ? data.choices[0].message.content : (data.response || JSON.stringify(data));
+          assistDiv.innerText = content;
+        } else {
+          assistDiv.innerText = `Error: ${JSON.stringify(data)}`;
+        }
+      } catch (err) {
+        assistDiv.innerText = `Failed to contact engine: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+    }
+
+    async function generateCaseSheet() {
+      const patientId = document.getElementById('patient-id').value.trim() || 'patient_001';
+      const output = document.getElementById('casesheet-output');
+      const btn = document.getElementById('btn-casesheet');
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Synthesizing Case Sheet...`;
+      output.innerText = `Synthesizing grounded Doctor Case Sheet from evidence vectors for ${patientId}...`;
+
+      try {
+        const res = await fetch(`${BASE_URL}/patients/${patientId}/case-sheet`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          output.innerText = JSON.stringify(data, null, 2);
+        } else {
+          output.innerText = `Error generating case sheet: ${JSON.stringify(data)}`;
+        }
+      } catch (err) {
+        output.innerText = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `Generate Case Sheet`;
+      }
+    }
+
+    async function fetchState() {
+      const patientId = document.getElementById('patient-id').value.trim() || 'patient_001';
+      const output = document.getElementById('state-output');
+
+      try {
+        const res = await fetch(`${BASE_URL}/patients/${patientId}/state`);
+        const data = await res.json();
+        output.innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        output.innerText = `Error fetching state: ${err.message}`;
+      }
+    }
+
+    // Init health polling
+    checkHealth();
+    setInterval(checkHealth, 10000);
+  </script>
+</body>
+</html>
