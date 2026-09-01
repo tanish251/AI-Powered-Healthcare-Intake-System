@@ -1,0 +1,18 @@
+# Core versions used in the validated Kaggle run.
+# Note: IndicTransToolkit ships a Cython extension with no prebuilt Windows
+# wheel — installing it locally requires a C++ compiler.
+# On Windows: install "Build Tools for Visual Studio" with the
+# "Desktop development with C++" workload before running pip install.
+transformers==4.40.0
+IndicTransToolkit==1.1.1
+onnxruntime==1.29.0
+huggingface_hub
+
+# Not pinned to an exact build since this varies by platform/CUDA version.
+# Install the CPU or CUDA build appropriate for your machine — see
+# https://pytorch.org/get-started/locally/
+torch
+torchaudio
+
+# Optional, only if running with GPU-accelerated ONNX inference:
+# onnxruntime-gpu
