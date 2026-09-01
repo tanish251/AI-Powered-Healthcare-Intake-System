@@ -259,26 +259,104 @@ print('✅ All AI/ML models successfully downloaded and cached!')
 
 ---
 
-## 🚀 How to Run the Entire Application
+## 🪟 Windows Setup & Operating Guide (PowerShell / CMD / WSL2)
+
+The system is fully compatible with **Windows 10 / 11** natively via PowerShell or WSL2.
+
+### Step 1: Install Windows Prerequisites
+1. **Node.js (v20+)**: Download installer from [nodejs.org](https://nodejs.org/).
+2. **Miniconda / Anaconda**: Download from [docs.anaconda.com](https://docs.anaconda.com/free/miniconda/).
+3. **Git for Windows**: Download from [git-scm.com](https://git-scm.com/).
+4. **Docker Desktop for Windows**: Download from [docker.com](https://www.docker.com/products/docker-desktop/).
+5. **Visual Studio 2022 Community** (*Desktop development with C++* workload selected).
+6. **NVIDIA CUDA Toolkit 12.x**: Download from [developer.nvidia.com](https://developer.nvidia.com/cuda-downloads).
+
+---
+
+### Step 2: Setup Frontend & Python Backend Environment (PowerShell)
+
+Open **PowerShell as Administrator**:
+
+```powershell
+# 1. Install React 19 / Vite Frontend Dependencies
+npm install
+
+# 2. Create and Activate Conda Python 3.10 Environment
+conda create -n ai-ml python=3.10 -y
+conda activate ai-ml
+
+# 3. Install PyTorch with CUDA Acceleration for Windows
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# 4. Install Core Engine Packages
+pip install fastapi "uvicorn[standard]" httpx pydantic pydantic-settings python-multipart qdrant-client sentence-transformers rank-bm25 numpy pymupdf Pillow opencv-python-headless orjson python-dotenv rapidfuzz beautifulsoup4 huggingface_hub transformers pytest
+```
+
+---
+
+### Step 3: Build `llama.cpp` on Windows with CUDA
+
+In PowerShell:
+```powershell
+New-Item -ItemType Directory -Force -Path "engine\repos"
+Set-Location "engine\repos"
+git clone https://github.com/ggerganov/llama.cpp.git
+Set-Location "llama.cpp"
+
+# Build with CMake & MSVC CUDA compiler
+cmake -B build -DGGML_CUDA=ON
+cmake --build build --config Release -j 8
+Set-Location "..\..\.."
+```
+*Compiled Windows binary path*: `engine\repos\llama.cpp\build\bin\Release\llama-server.exe`
+
+---
+
+### Step 4: Download Model Weights on Windows
+
+In PowerShell:
+```powershell
+New-Item -ItemType Directory -Force -Path "engine\data\models\lingshu-i-8b", "engine\data\models\paddleocr-vl-0.9b"
+
+# Download Lingshu Medical LLM GGUF
+huggingface-cli download Lingshu-AI/Lingshu-I-8B-GGUF Lingshu-I-8B-Q4_K_M.gguf --local-dir engine\data\models\lingshu-i-8b
+
+# Download PaddleOCR-VL GGUF & MMProj
+huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF PaddleOCR-VL-0.9B-GGUF.gguf --local-dir engine\data\models\paddleocr-vl-0.9b
+huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF PaddleOCR-VL-0.9B-GGUF-mmproj.gguf --local-dir engine\data\models\paddleocr-vl-0.9b
+```
+
+---
+
+## 🚀 How to Run the Entire Application (Linux & Windows)
 
 You need to run both the **Backend Engine** and the **Frontend UI**.
 
 ### Option A: Recommended Full Application Launch (2 Terminal Windows)
 
 #### Terminal 1: Launch Backend Engine Services
+
+**On Linux / macOS (Bash)**:
 ```bash
 conda activate ai-ml
 cd engine
 bash scripts/start.sh
 ```
+
+**On Windows (PowerShell)**:
+```powershell
+conda activate ai-ml
+Set-Location engine
+.\scripts\start.ps1
+```
 *This starts the Lingshu Medical LLM server (port 38127), PaddleOCR Vision server (port 38128), Qdrant database (port 6333), and the FastAPI engine (port 8110).*
 
-#### Terminal 2: Launch Frontend User Interface
+#### Terminal 2: Launch Frontend User Interface (Linux / Windows)
 ```bash
 # In project root directory
 npm run dev
 ```
-*Access the React Frontend UI in your web browser at `http://localhost:5173` or preview URL.*
+*Access the React Frontend UI in your web browser at `http://localhost:5173`.*
 
 ---
 
