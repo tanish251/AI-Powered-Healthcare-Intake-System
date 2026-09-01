@@ -223,38 +223,23 @@ docker run -d \
 
 ---
 
-### Step 6: Download All Model Weights in Sequence
+### Step 6: Download All Model Weights (Universal Command for Linux & Windows)
+
+Run this single cross-platform command on **either Linux or Windows** (PowerShell / Command Prompt / Terminal) to automatically download and prepare all required local AI/ML models:
 
 ```bash
-# Create local target model directories
-mkdir -p engine/data/models/lingshu-i-8b
-mkdir -p engine/data/models/paddleocr-vl-0.9b
+# Works identically on Linux, Windows PowerShell, CMD, & macOS
+python engine/scripts/download_models.py
+```
 
-# 1. Download Lingshu Medical LLM GGUF (8B)
-huggingface-cli download Lingshu-AI/Lingshu-I-8B-GGUF \
-    Lingshu-I-8B-Q4_K_M.gguf \
-    --local-dir engine/data/models/lingshu-i-8b
+*Or manually using cross-platform CLI:*
+```bash
+# Download Lingshu Medical LLM GGUF (8B)
+huggingface-cli download Lingshu-AI/Lingshu-I-8B-GGUF Lingshu-I-8B-Q4_K_M.gguf --local-dir engine/data/models/lingshu-i-8b
 
-# 2. Download PaddleOCR-VL Vision Model GGUF & MMProj (0.9B)
-huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF \
-    PaddleOCR-VL-0.9B-GGUF.gguf \
-    --local-dir engine/data/models/paddleocr-vl-0.9b
-
-huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF \
-    PaddleOCR-VL-0.9B-GGUF-mmproj.gguf \
-    --local-dir engine/data/models/paddleocr-vl-0.9b
-
-# 3. Pre-cache HuggingFace Vision & Embedding Models
-python3 -c "
-from transformers import TrOCRProcessor, VisionEncoderDecoderModel
-TrOCRProcessor.from_pretrained('microsoft/trocr-base-handwritten')
-VisionEncoderDecoderModel.from_pretrained('microsoft/trocr-base-handwritten')
-
-from sentence_transformers import SentenceTransformer, CrossEncoder
-SentenceTransformer('BAAI/bge-small-en-v1.5')
-CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-print('✅ All AI/ML models successfully downloaded and cached!')
-"
+# Download PaddleOCR-VL Vision Model GGUF & MMProj (0.9B)
+huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF PaddleOCR-VL-0.9B-GGUF.gguf --local-dir engine/data/models/paddleocr-vl-0.9b
+huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF PaddleOCR-VL-0.9B-GGUF-mmproj.gguf --local-dir engine/data/models/paddleocr-vl-0.9b
 ```
 
 ---
@@ -312,18 +297,11 @@ Set-Location "..\..\.."
 
 ---
 
-### Step 4: Download Model Weights on Windows
+### Step 4: Download Model Weights on Windows (Universal Command)
 
-In PowerShell:
+In PowerShell / Command Prompt:
 ```powershell
-New-Item -ItemType Directory -Force -Path "engine\data\models\lingshu-i-8b", "engine\data\models\paddleocr-vl-0.9b"
-
-# Download Lingshu Medical LLM GGUF
-huggingface-cli download Lingshu-AI/Lingshu-I-8B-GGUF Lingshu-I-8B-Q4_K_M.gguf --local-dir engine\data\models\lingshu-i-8b
-
-# Download PaddleOCR-VL GGUF & MMProj
-huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF PaddleOCR-VL-0.9B-GGUF.gguf --local-dir engine\data\models\paddleocr-vl-0.9b
-huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF PaddleOCR-VL-0.9B-GGUF-mmproj.gguf --local-dir engine\data\models\paddleocr-vl-0.9b
+python engine/scripts/download_models.py
 ```
 
 ---
