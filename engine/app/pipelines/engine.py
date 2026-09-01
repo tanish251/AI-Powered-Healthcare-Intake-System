@@ -26,7 +26,9 @@ class PS47Engine:
         qdrant_db_path = settings.data_dir / "qdrant_db"
         qdrant_db_path.mkdir(parents=True, exist_ok=True)
         try:
-            self.qdrant = QdrantClient(url=settings.qdrant_url, timeout=3.0)
+            client = QdrantClient(url=settings.qdrant_url, timeout=2.0)
+            client.get_collections()
+            self.qdrant = client
         except Exception:
             self.qdrant = QdrantClient(path=str(qdrant_db_path))
 
