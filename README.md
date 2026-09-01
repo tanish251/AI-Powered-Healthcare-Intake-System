@@ -233,11 +233,48 @@ bash scripts/start.sh
 - **Qdrant Vector Database**: `http://127.0.0.1:6333`
 - **SearXNG Search**: `http://127.0.0.1:8080`
 
-### Running Automated Test Suite
+### Running Automated Test Suite & OCR Extraction Demos
 ```bash
 # Run unit & pipeline tests
 conda run -n ai-ml pytest tests/test_ps47_engine.py -v
+
+# Run live OCR extraction demo on sample lab report and prescription
+python3 tests/demo_ocr_extraction.py
 ```
+
+---
+
+## 🧪 Live Sample OCR Information Extraction Demos
+
+The PS47 Engine includes a live demonstration script (`tests/demo_ocr_extraction.py`) that processes sample lab reports and prescriptions through the multi-pass vision consensus engine (`PaddleOCR-VL-0.9B` + `TrOCR`):
+
+### 1. Laboratory Blood Report (`sample_blood_report.png`)
+- **Processing Time**: `6457.27 ms`
+- **OCR Engine**: `paddleocr-vl-0.9b` (Confidence: `0.763`, Status: `VERIFIED`)
+- **Patient**: Rahul Verma (45 / Male) | **Date**: 01-Sep-2026
+- **Extracted Lab Parameters**:
+  - `Hemoglobin (Hb)`: **8.5 g/dL (LOW)** *(Ref: 13.5 - 17.5)*
+  - `Total WBC Count`: **14,800 /uL (HIGH)** *(Ref: 4,000 - 11,000)*
+  - `Platelet Count`: **92,000 /uL (LOW)** *(Ref: 150,000 - 450,000)*
+  - `Fasting Blood Sugar (FBS)`: **148 mg/dL (HIGH)** *(Ref: 70 - 99)*
+  - `HbA1c`: **7.8% (HIGH)** *(Ref: 4.0 - 5.6)*
+  - `Serum Creatinine`: **1.1 mg/dL** | `Sodium (Na+)`: **138 mEq/L** | `Potassium (K+)`: **4.2 mEq/L**
+- **Clinical Impression Extracted**:
+  1. *Moderate Anemia with Leukocytosis (Elevated WBC suggesting active infection)*
+  2. *Thrombocytopenia (Mild to Moderate Low Platelets)*
+  3. *Uncontrolled Glycemia (HbA1c 7.8%) — Endocrinology consultation recommended*
+
+### 2. Medical Doctor Prescription (`sample_prescription.png`)
+- **Processing Time**: `3503.22 ms`
+- **OCR Engine**: `paddleocr-vl-0.9b` (Confidence: `0.768`, Status: `VERIFIED`)
+- **Doctor**: Dr. Sanjay Mehta, MD (MMC-84721) | **Patient**: Mrs. Sunita Patel (52 yrs / Female)
+- **Diagnosis Extracted**: *Acute Bronchial Infection with Productive Cough, Low Grade Fever (100.4 F)*
+- **Extracted Prescribed Medications (Rx)**:
+  1. `Tab. Amoxicillin + Clavulanate 625mg`: 1 tablet twice daily after meals (5 Days)
+  2. `Tab. Paracetamol 650mg (Dolo)`: 1 tablet thrice daily when fever > 100 F (3 Days)
+  3. `Cap. Pantoprazole 40mg (Pan-40)`: 1 capsule once daily in morning (7 Days)
+  4. `Syr. Benadryl Cough Formula 10ml`: 2 teaspoonfuls thrice daily after meals (5 Days)
+  5. `Tab. Cetirizine 10mg`: 1 tablet once daily at bedtime (5 Days)
 
 ---
 

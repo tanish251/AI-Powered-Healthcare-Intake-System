@@ -44,6 +44,12 @@ cp .env.example .env
 
 Then run `scripts/bootstrap.sh` to install/clone dependencies and download the selected local model artifacts. Edit `.env` before starting services.
 
+### OCR Information Extraction Demo
+```bash
+# Process sample lab report & doctor prescription through OCR consensus pipeline
+python3 ../tests/demo_ocr_extraction.py
+```
+
 ## API
 
 ```text
