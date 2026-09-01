@@ -1,29 +1,52 @@
-# 🏥 PS47 AI-Powered Healthcare Intake System & Medical Engine
+# 🏥 AI-Powered Healthcare Intake System & PS47 Medical Engine
 
-An end-to-end, privacy-first, locally deployed medical intake engine and diagnostic testing system. Designed for local operation on consumer GPUs (e.g. NVIDIA RTX 3050), this platform ingests complex patient medical reports (scanned PDFs, lab images, handwritten clinical notes, and text), normalizes medical language, indexes evidence using a weighted 20/20/60 hybrid RAG pipeline, and generates evidence-grounded doctor case sheets and patient guidance.
+An end-to-end, privacy-first, locally deployed medical intake engine, diagnostic case sheet generator, and patient guidance platform. Built for 100% local execution on consumer GPUs (e.g. NVIDIA RTX 3050/4060 or higher), this system ingests complex patient medical records (scanned PDFs, pathology reports, handwritten prescriptions, lab images, and text), normalizes medical language, indexes evidence using a 20/20/60 weighted hybrid RAG pipeline, and synthesizes evidence-grounded Doctor Case Sheets and Patient Guidance.
 
 ---
 
-## 🏗️ System Architecture & Workflow
+## 🏗️ System Architecture & End-to-End Workflow
 
 ```text
-Patient Medical Reports / Lab Images / Symptoms
- ├─> Document Upload (FastAPI / REST API)
- │    └─> Multi-Pass Consensus OCR & Document Processing
- │         ├─> Primary: PaddleOCR-VL-0.9B (Visual Layout & Text Extraction)
- │         ├─> Fallback: TrOCR-base-handwritten (3-Pass Consensus for Low-Confidence Regions)
- │         └─> Language Normalizer (Hinglish/Devanagari Glossary & IndicTrans2)
- ├─> Structured Patient State & History Timeline (data/patients/{id}/state.json)
- ├─> Hybrid Vector & Sparse Retrieval Pipeline (Qdrant + BM25 + CrossEncoder Reranker)
- │    ├─> 20% Dense Vector Embeddings (BAAI/bge-small-en-v1.5)
- │    ├─> 20% Sparse Keyword Search (BM25Okapi)
- │    └─> 60% Neural CrossEncoder Reranking (ms-marco-MiniLM-L-6-v2) + Recency Boosting
- ├─> Evidence Sufficiency & Grounding Layer
- │    ├─> Evaluates retrieval score threshold
- │    └─> Triggers SearXNG local web search IF local evidence is insufficient
- └─> Local Medical LLM Inference (Lingshu-I-8B GGUF via llama-server)
-      ├─> Synthesizes Doctor Case Sheet (JSON) & Patient Guidance (5 Clinical Sections)
-      └─> Strict Citation Validation Layer (Strips unsupported tags & enforces "I don't know")
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 FRONTEND APPLICATION                                   │
+│                        (React 19 + Vite + Tailwind CSS v4 UI)                           │
+│              - Interactive Document Upload & Intake Portal                              │
+│              - Patient Symptom Chat & Supportive Guidance Interface                    │
+│              - Real-Time Patient History Timeline & Structured Doctor Case Sheet       │
+└───────────────────────────────────────────┬─────────────────────────────────────────────┘
+                                            │ REST API Calls (Port 8110)
+                                            ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                FASTAPI ENGINE BACKEND                                   │
+│                        (PS47 Orchestration & Pipeline Gateway)                          │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1. Multi-Pass Vision & OCR Consensus Pipeline                                           │
+│    ├─> Primary: PaddleOCR-VL-0.9B (GGUF via llama-server on Port 38128)                 │
+│    └─> Fallback: TrOCR-base-handwritten (3-Pass Consensus for Low-Confidence Regions)   │
+│                                                                                         │
+│ 2. Language Normalization & Translation Layer                                            │
+│    ├─> IndicTrans2 (Devanagari / Indic to English NMT)                                  │
+│    └─> Hinglish / Vernacular Clinical Terminology Glossary Mapping                      │
+│                                                                                         │
+│ 3. Structured Patient State & History Store                                             │
+│    └─> Data Persistence (data/patients/{id}/state.json & data/manifests/)               │
+│                                                                                         │
+│ 4. 20/20/60 Weighted Hybrid RAG Retrieval Engine                                        │
+│    ├─> 20% Dense Vector Embeddings (BAAI/bge-small-en-v1.5 in Qdrant DB on Port 6333)    │
+│    ├─> 20% Sparse Keyword Search (BM25Okapi In-Memory Index)                            │
+│    └─> 60% Neural CrossEncoder Reranker (ms-marco-MiniLM-L-6-v2) + Recency Boosting     │
+│                                                                                         │
+│ 5. Grounding & Evidence Sufficiency Evaluation Gate                                     │
+│    ├─> Evaluates retrieval score threshold against query                                │
+│    └─> Triggers local SearXNG Search (Port 8080) IF local evidence is insufficient      │
+│                                                                                         │
+│ 6. Local Medical LLM Inference                                                          │
+│    └─> Lingshu-I-8B GGUF (via llama-server on Port 38127)                              │
+│                                                                                         │
+│ 7. Strict Citation Validation & Output Formatter                                        │
+│    ├─> Formats Doctor Case Sheet JSON & 5-Section Patient Guidance                      │
+│    └─> Strips unsupported citation tags & enforces "I don't know" policy               │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -32,60 +55,66 @@ Patient Medical Reports / Lab Images / Symptoms
 
 ```text
 .
-├── engine/                       # Core AI/ML FastAPI Engine (Scope for Python Engine)
-│   ├── app/                      # Pipeline Application Logic
+├── src/                          # React + Vite + Tailwind CSS Frontend Application
+│   ├── App.tsx                   # Main React Intake & Diagnostic UI Component
+│   ├── main.tsx                  # React Application Entrypoint
+│   └── index.css                 # Global CSS Entrypoint & Tailwind CSS v4 Theme Imports
+├── engine/                       # Core Python AI/ML Diagnostic Engine & REST Gateway
+│   ├── app/                      # Engine Modules & Pipeline Logic
 │   │   ├── api.py                # FastAPI REST Route Definitions
-│   │   ├── document/             # PyMuPDF, PaddleOCR-VL & TrOCR Handwriting Processor
+│   │   ├── document/             # PyMuPDF, PaddleOCR-VL & TrOCR Handwriting Processors
 │   │   ├── language/             # IndicTrans2 & Hinglish Medical Normalizer
 │   │   ├── llm/                  # llama-server OpenAI-compatible Client
-│   │   ├── patient/              # Structured Patient State & Timeline Persistence
-│   │   ├── pipelines/            # PS47 Central Orchestrator & Citation Validator
-│   │   ├── rag/                  # 20/20/60 Hybrid RAG (Qdrant + BM25 + Reranker)
-│   │   ├── safety/               # Grounding & Evidence Sufficiency Evaluation
+│   │   ├── patient/              # Structured Patient State & History Store
+│   │   ├── pipelines/            # PS47 Central Pipeline Orchestrator & Citation Validator
+│   │   ├── rag/                  # 20/20/60 Hybrid RAG (Qdrant + BM25 + CrossEncoder)
+│   │   ├── safety/               # Evidence Sufficiency Evaluation & Safety Gate
 │   │   └── web/                  # SearXNG Web Evidence Retrieval Client
-│   ├── config/                   # System Settings & Pydantic Config Manager
-│   │   └── settings.py           # Model URLs, Collection Names & Threshold Defaults
-│   ├── scripts/                  # Service Startup Scripts
-│   │   └── start.sh              # Launches LLM, OCR, and FastAPI Uvicorn Server
+│   ├── config/                   # Configuration Manager & System Settings
+│   │   └── settings.py           # Model URLs, Thresholds, Collection Names, & Paths
+│   ├── scripts/                  # Service Management & Launch Shell Scripts
+│   │   ├── start.sh              # Universal Start Script (LLM, OCR, Qdrant, Uvicorn)
+│   │   ├── llama-medical.sh      # Launches Lingshu-I-8B Medical LLM Server
+│   │   └── llama-ocr.sh          # Launches PaddleOCR-VL-0.9B Vision OCR Server
 │   ├── static/                   # Diagnostic Single-Page HTML Testing Portal
-│   │   └── index.html            # Web UI for Document Upload, Chat, & Case Sheet
-│   ├── main.py                   # FastAPI Application Entrypoint
+│   │   └── index.html            # Standalone Web UI for Direct Engine Testing
+│   ├── main.py                   # FastAPI Server Entrypoint
 │   └── requirements.txt          # Engine Python Package Dependencies
-├── src/                          # React + Vite + Tailwind CSS Frontend Application
-│   ├── App.tsx                   # Main React Application Component
-│   ├── main.tsx                  # React Entrypoint
-│   └── index.css                 # Global CSS & Tailwind v4 Customizations
-├── tests/                        # Comprehensive Unit & Integration Tests
-│   ├── test_ps47_engine.py       # Engine Unit Tests (OCR, Sufficiency, Citation)
-│   └── test_e2e_full_pipeline.py # End-to-End Pipeline Verification
+├── tests/                        # Comprehensive Testing & Demonstration Suite
+│   ├── test_ps47_engine.py       # Pytest Suite (OCR, RAG, Sufficiency, Citation)
+│   ├── test_e2e_full_pipeline.py # End-to-End Integration Verification Test
+│   ├── demo_ocr_extraction.py    # Live OCR Information Extraction Script
+│   └── sample_reports/           # Sample Pathology Lab Reports & Prescriptions
 ├── index.html                    # Frontend HTML Shell
 ├── vite.config.ts                # Vite Development Server Configuration
-└── README.md                     # System Setup & Documentation Guide
+├── package.json                  # Frontend Node.js Dependencies & NPM Scripts
+└── README.md                     # Central Setup, Operating & Documentation Guide
 ```
 
 ---
 
-## 🤖 Complete Model Inventory & File Locations
+## 🤖 Complete Model Inventory & Required Local Paths
 
-All AI/ML models run 100% locally. The required model files are located inside `engine/data/models/`:
+All AI/ML models operate **100% locally**. Model weights must be placed inside `engine/data/models/`:
 
-| Model Purpose | Exact Model Name | Source / Format | Local Directory Target Path |
+| Model Component | Exact Model Name | Source / Format | Target Local Path |
 |---|---|---|---|
 | **Medical LLM** | `Lingshu-I-8B-Q4_K_M.gguf` | Lingshu-AI (GGUF 4-bit) | `engine/data/models/lingshu-i-8b/` |
 | **OCR VLM** | `PaddleOCR-VL-0.9B-GGUF.gguf` | PaddlePaddle (GGUF 0.9B) | `engine/data/models/paddleocr-vl-0.9b/` |
-| **OCR Vision Projection** | `PaddleOCR-VL-0.9B-GGUF-mmproj.gguf` | PaddlePaddle (MMPROJ) | `engine/data/models/paddleocr-vl-0.9b/` |
-| **Handwriting OCR** | `microsoft/trocr-base-handwritten` | HuggingFace VisionEncoder | Pre-cached / HuggingFace Cache |
-| **Language Normalizer** | `AI4Bharat/IndicTrans2-indic-en-1B` | HuggingFace NMT | Pre-cached / HuggingFace Cache |
-| **Dense Embeddings** | `BAAI/bge-small-en-v1.5` | SentenceTransformers | Pre-cached / HuggingFace Cache |
-| **CrossEncoder Reranker** | `cross-encoder/ms-marco-MiniLM-L-6-v2` | SentenceTransformers | Pre-cached / HuggingFace Cache |
+| **OCR MMProj** | `PaddleOCR-VL-0.9B-GGUF-mmproj.gguf` | PaddlePaddle (MMPROJ) | `engine/data/models/paddleocr-vl-0.9b/` |
+| **Handwriting OCR** | `microsoft/trocr-base-handwritten` | HuggingFace VisionEncoder | HuggingFace Local Cache |
+| **Language NMT** | `AI4Bharat/IndicTrans2-indic-en-1B` | HuggingFace NMT | HuggingFace Local Cache |
+| **Dense Embeddings** | `BAAI/bge-small-en-v1.5` | SentenceTransformers | HuggingFace Local Cache |
+| **CrossEncoder Reranker** | `cross-encoder/ms-marco-MiniLM-L-6-v2` | SentenceTransformers | HuggingFace Local Cache |
 
 ---
 
-## 🛠️ Step-by-Step Installation & Setup Guide
+## 🛠️ Complete Step-by-Step Setup & Installation Guide
 
-Follow this sequence to install dependencies, download models, build inference binaries, and run the engine locally.
+Follow these exact steps to install all frontend and backend dependencies, compile inference engines, setup Docker services, and download model weights.
 
 ### Step 1: Install System Prerequisites
+Run on Ubuntu/Debian Linux:
 ```bash
 sudo apt update && sudo apt install -y \
     build-essential \
@@ -97,26 +126,37 @@ sudo apt update && sudo apt install -y \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    nodejs \
+    npm \
     docker.io \
     docker-compose-v2
+
+# Enable and start Docker service
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
 ```
 
 ---
 
-### Step 2: Create & Activate Conda Environment
+### Step 2: Setup Frontend Application Dependencies
+In the project root directory:
 ```bash
+# Install Node.js dependencies (React 19, Vite, Tailwind CSS v4)
+npm install
+```
+
+---
+
+### Step 3: Setup Backend Python Environment
+```bash
+# Create and activate Conda environment
 conda create -n ai-ml python=3.10 -y
 conda activate ai-ml
-```
 
----
-
-### Step 3: Install Python Dependencies
-```bash
 # Install PyTorch with CUDA 12.1 acceleration
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
-# Install engine core libraries
+# Install engine core Python packages
 pip install \
     fastapi>=0.115.0 \
     "uvicorn[standard]>=0.34.0" \
@@ -136,12 +176,14 @@ pip install \
     rapidfuzz>=3.12.0 \
     beautifulsoup4>=4.12.0 \
     huggingface_hub>=0.30.0 \
-    transformers>=4.40.0
+    transformers>=4.40.0 \
+    pytest>=8.0.0
 ```
 
 ---
 
-### Step 4: Build `llama.cpp` with CUDA Acceleration
+### Step 4: Compile `llama.cpp` with CUDA Acceleration
+Compile the high-performance C++ LLM server:
 ```bash
 mkdir -p engine/repos && cd engine/repos
 git clone https://github.com/ggerganov/llama.cpp.git
@@ -152,13 +194,13 @@ cmake .. -DGGML_CUDA=ON
 cmake --build . --config Release -j$(nproc)
 cd ../../../..
 ```
-*Binary path*: `engine/repos/llama.cpp/build/bin/llama-server`
+*Compiled binary target path*: `engine/repos/llama.cpp/build/bin/llama-server`
 
 ---
 
-### Step 5: Start Docker Infrastructure Services
+### Step 5: Launch Infrastructure Docker Services
 
-#### Launch Qdrant Vector Database (Port 6333)
+#### 1. Qdrant Vector Database (Port 6333)
 ```bash
 docker run -d \
   --name ps47-qdrant \
@@ -167,8 +209,9 @@ docker run -d \
   -v ps47_qdrant_data:/qdrant/storage \
   qdrant/qdrant:latest
 ```
+*(Note: If Docker is unavailable, the engine automatically falls back to local file storage at `engine/data/qdrant_db`.)*
 
-#### Launch SearXNG Search Engine (Port 8080)
+#### 2. SearXNG Local Search Engine (Port 8080)
 ```bash
 docker run -d \
   --name ps47-searxng \
@@ -183,7 +226,7 @@ docker run -d \
 ### Step 6: Download All Model Weights in Sequence
 
 ```bash
-# Create model target directories
+# Create local target model directories
 mkdir -p engine/data/models/lingshu-i-8b
 mkdir -p engine/data/models/paddleocr-vl-0.9b
 
@@ -192,7 +235,7 @@ huggingface-cli download Lingshu-AI/Lingshu-I-8B-GGUF \
     Lingshu-I-8B-Q4_K_M.gguf \
     --local-dir engine/data/models/lingshu-i-8b
 
-# 2. Download PaddleOCR-VL GGUF & Vision MMProj
+# 2. Download PaddleOCR-VL Vision Model GGUF & MMProj (0.9B)
 huggingface-cli download PaddlePaddle/PaddleOCR-VL-0.9B-GGUF \
     PaddleOCR-VL-0.9B-GGUF.gguf \
     --local-dir engine/data/models/paddleocr-vl-0.9b
@@ -210,45 +253,114 @@ VisionEncoderDecoderModel.from_pretrained('microsoft/trocr-base-handwritten')
 from sentence_transformers import SentenceTransformer, CrossEncoder
 SentenceTransformer('BAAI/bge-small-en-v1.5')
 CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-print('All models successfully downloaded and cached!')
+print('✅ All AI/ML models successfully downloaded and cached!')
 "
 ```
 
 ---
 
-## ⚡ 7. Running & Testing the Engine
+## 🚀 How to Run the Entire Application
 
-### Start All Services
+You need to run both the **Backend Engine** and the **Frontend UI**.
+
+### Option A: Recommended Full Application Launch (2 Terminal Windows)
+
+#### Terminal 1: Launch Backend Engine Services
 ```bash
+conda activate ai-ml
 cd engine
 bash scripts/start.sh
 ```
+*This starts the Lingshu Medical LLM server (port 38127), PaddleOCR Vision server (port 38128), Qdrant database (port 6333), and the FastAPI engine (port 8110).*
 
-### Access Ports & Services
-
-- **FastAPI Core Engine & Web Portal**: `http://127.0.0.1:8110/`
-- **Health Check Endpoint**: `http://127.0.0.1:8110/health`
-- **Medical LLM Server**: `http://127.0.0.1:38127`
-- **OCR VLM Server**: `http://127.0.0.1:38128`
-- **Qdrant Vector Database**: `http://127.0.0.1:6333`
-- **SearXNG Search**: `http://127.0.0.1:8080`
-
-### Running Automated Test Suite & OCR Extraction Demos
+#### Terminal 2: Launch Frontend User Interface
 ```bash
-# Run unit & pipeline tests
-conda run -n ai-ml pytest tests/test_ps47_engine.py -v
-
-# Run live OCR extraction demo on sample lab report and prescription
-python3 tests/demo_ocr_extraction.py
+# In project root directory
+npm run dev
 ```
+*Access the React Frontend UI in your web browser at `http://localhost:5173` or preview URL.*
+
+---
+
+### Option B: Manual Server Startup (Individual Control)
+
+If you prefer starting services individually for debugging:
+
+1. **Start Lingshu Medical LLM Server**:
+   ```bash
+   engine/repos/llama.cpp/build/bin/llama-server \
+     -m engine/data/models/lingshu-i-8b/Lingshu-I-8B-Q4_K_M.gguf \
+     --host 127.0.0.1 --port 38127 -ngl 4 -c 4096 -np 1
+   ```
+
+2. **Start PaddleOCR Vision VLM Server**:
+   ```bash
+   engine/repos/llama.cpp/build/bin/llama-server \
+     -m engine/data/models/paddleocr-vl-0.9b/PaddleOCR-VL-0.9B-GGUF.gguf \
+     --mmproj engine/data/models/paddleocr-vl-0.9b/PaddleOCR-VL-0.9B-GGUF-mmproj.gguf \
+     --host 127.0.0.1 --port 38128 -ngl 8 -c 2048 -np 1
+   ```
+
+3. **Start FastAPI Engine Server**:
+   ```bash
+   cd engine
+   conda activate ai-ml
+   uvicorn main:app --host 127.0.0.1 --port 8110
+   ```
+
+4. **Start React Frontend UI**:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 💻 Standalone Diagnostic Web Portal
+
+The backend engine also includes a self-contained diagnostic single-page testing portal accessible directly via the FastAPI backend:
+
+- **Diagnostic HTML Portal**: `http://127.0.0.1:8110/`
+- **Backend Health Status**: `http://127.0.0.1:8110/health`
+
+---
+
+## 📖 End-to-End User Workflow & How to Use
+
+1. **Patient Document Ingestion**:
+   - Open the application UI (`http://localhost:5173` or `http://127.0.0.1:8110/`).
+   - Select or drag-and-drop patient records (blood test reports, scanned prescription PNG/PDFs, clinical notes, or text files).
+   - Click **"Upload & Ingest Document"**. The engine runs multi-pass PaddleOCR + TrOCR consensus, extracts structured medical entities, normalizes terms, and updates the patient vector index in real time.
+
+2. **Viewing Structured Timeline & State**:
+   - The engine automatically updates the active patient timeline (`/patients/{id}/state`), organizing symptoms, vitals, lab values, and medications chronologically.
+
+3. **Generating Evidence-Grounded Doctor Case Sheet**:
+   - Click **"Generate Doctor Case Sheet"**.
+   - The engine retrieves relevant evidence using 20/20/60 Hybrid RAG, evaluates sufficiency, prompts the Lingshu Medical LLM, validates all citations against ground-truth evidence, and renders a structured JSON Doctor Case Sheet containing:
+     - Chief Complaints & History of Present Illness
+     - Vitals & Clinical Examination Findings
+     - Key Pathology / Radiology Lab Findings
+     - Working Diagnosis & Differential Diagnoses
+     - Recommended Treatment Plan & Follow-up Advice
+
+4. **Patient Guidance & Symptom Chat**:
+   - Patients can ask questions regarding their symptoms or uploaded lab reports.
+   - The engine responds with supportive, non-prescriptive, evidence-grounded guidance with strict citation enforcement.
 
 ---
 
 ## 🧪 Live Sample OCR Information Extraction Demos
 
-The PS47 Engine includes a live demonstration script (`tests/demo_ocr_extraction.py`) that processes sample lab reports and prescriptions through the multi-pass vision consensus engine (`PaddleOCR-VL-0.9B` + `TrOCR`):
+You can execute live OCR information extraction on sample medical reports and prescriptions using the PS47 multi-pass vision consensus engine:
 
-### 1. Laboratory Blood Report (`sample_blood_report.png`)
+```bash
+# Run OCR extraction demo script
+conda run -n ai-ml python tests/demo_ocr_extraction.py
+```
+
+### Extracted Sample Results (`tests/OCR_EXTRACTION_DEMO_RESULTS.md`)
+
+#### 📄 1. Laboratory Blood Report (`sample_blood_report.png`)
 - **Processing Time**: `6457.27 ms`
 - **OCR Engine**: `paddleocr-vl-0.9b` (Confidence: `0.763`, Status: `VERIFIED`)
 - **Patient**: Rahul Verma (45 / Male) | **Date**: 01-Sep-2026
@@ -264,7 +376,7 @@ The PS47 Engine includes a live demonstration script (`tests/demo_ocr_extraction
   2. *Thrombocytopenia (Mild to Moderate Low Platelets)*
   3. *Uncontrolled Glycemia (HbA1c 7.8%) — Endocrinology consultation recommended*
 
-### 2. Medical Doctor Prescription (`sample_prescription.png`)
+#### 📄 2. Medical Doctor Prescription (`sample_prescription.png`)
 - **Processing Time**: `3503.22 ms`
 - **OCR Engine**: `paddleocr-vl-0.9b` (Confidence: `0.768`, Status: `VERIFIED`)
 - **Doctor**: Dr. Sanjay Mehta, MD (MMC-84721) | **Patient**: Mrs. Sunita Patel (52 yrs / Female)
@@ -278,10 +390,29 @@ The PS47 Engine includes a live demonstration script (`tests/demo_ocr_extraction
 
 ---
 
-## 🔑 Key API Endpoints
+## 🧪 Running Automated Unit & Pipeline Tests
 
-- `GET /health`: Comprehensive health check of all 6 runtime services.
-- `POST /documents/ingest`: Ingest PDF, PNG, JPG, or TXT file for a given `patient_id`.
-- `GET /patients/{id}/state`: Retrieve active structured patient state & timeline.
-- `POST /patients/{id}/chat`: Ask patient symptoms / report question (`message` form field).
-- `POST /patients/{id}/case-sheet`: Synthesize evidence-grounded Doctor Case Sheet JSON.
+Run the complete backend test suite to verify OCR consensus, language normalization, RAG retrieval scoring, evidence sufficiency gates, and citation validation:
+
+```bash
+conda run -n ai-ml pytest tests/test_ps47_engine.py -v
+```
+
+---
+
+## 🔑 Key API Endpoints Reference
+
+| HTTP Method | Endpoint Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check reporting status of all 6 runtime microservices |
+| `POST` | `/documents/ingest` | Ingest PDF, PNG, JPG, or TXT file for a given `patient_id` |
+| `GET` | `/patients/{id}/state` | Retrieve active structured patient state, history & timeline |
+| `POST` | `/patients/{id}/case-sheet` | Generate evidence-grounded JSON Doctor Case Sheet |
+| `POST` | `/patients/{id}/chat` | Send patient question (`message`) and retrieve grounded response |
+| `GET` | `/patients/{id}/sources` | Retrieve all verified evidence source spans & document metadata |
+
+---
+
+## 🛡️ License & Safety Disclaimer
+
+This system is an engineering prototype designed for healthcare intake research and diagnostic assistance. All outputs require review and clinical validation by a licensed medical professional prior to real-world patient care decisions. Patient mode is strictly restricted to supportive, non-prescriptive guidance and emergency escalation alerts.
